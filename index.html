@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <title>Controle de Despesas — Ano (v4.5)</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="color-scheme" content="light">
+  <style>
+    :root{color-scheme: only light;}
+    *{box-sizing:border-box}
+    html,body{background:#fff!important;color:#111;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,'Helvetica Neue',Arial,sans-serif;overflow-x:hidden}
+    header{position:sticky;top:0;background:#fff;border-bottom:1px solid #eee;padding:12px 14px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;z-index:10}
+    h1{font-size:18px;margin:0;margin-right:auto}
+    .badge,input,select,button,textarea{padding:10px;border:1px solid #ddd;border-radius:10px;background:#fff;color:#111}
+    .badge{font-size:12px}
+    main{max-width:1100px;margin:0 auto;padding:12px;display:grid;gap:10px}
+    .card{background:#fff;border:1px solid #eee;border-radius:14px;padding:10px}
+    .grid{display:grid;gap:10px}
+    .filters .row{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+    @media (max-width:900px){.filters .row{grid-template-columns:repeat(3,minmax(0,1fr))}}
+    @media (max-width:640px){.filters .row{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    label{font-size:12px;color:#333;display:block;margin-bottom:6px}
+    table{width:100%;border-collapse:collapse;table-layout:fixed}
+    th,td{padding:8px;border-bottom:1px solid #eee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    th{position:sticky;top:0;background:#fff;z-index:5}
+    tbody tr:hover{filter:brightness(0.96)}
+    .right{text-align:right}
+    .muted{color:#666}
+    .pill{padding:4px 8px;border-radius:999px;border:1px solid #eee;background:#fafafa;display:inline-block}
+    .totals{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+    .scroll{max-height:65vh;overflow:auto;border:1px solid #eee;border-radius:10px;max-width:100%}
+    .toolbar{display:flex;gap:8px;flex-wrap:wrap}
+    .hidden{display:none}
+    .toggle{cursor:pointer; user-select:none}
+    .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:13px;margin-top:6px}
+    .legend span{display:flex;align-items:center;gap:6px}
+    .box{width:14px;height:14px;border-radius:3px;display:inline-block}
+    .form-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+    @media (max-width:900px){.form-row{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    textarea{min-height:42px;resize:vertical}
+    .link{color:#0b57d0;cursor:pointer;text-decoration:underline}
+    .btn-mini{padding:6px 8px;font-size:12px;border-radius:8px}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Controle de Despesas — Ano (v4.5)</h1>
+    <div class="toolbar">
+      <label class="badge">
+        <input type="file" id="fileInput" accept=".csv" hidden>
+        <span>Carregar CSV</span>
+      </label>
+      <button id="btnExport">Exportar CSV (com linhas adicionadas)</button>
+      <button id="btnInstall" class="hidden">Instalar</button>
+      <a class="badge" target="_blank" href="https://pages.github.com/">Publicar no GitHub Pages</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="card grid">
+      <div class="muted">Adicionar Nova Linha (Lançamento)</div>
+      <div class="form-row">
+        <div><label>EMPRESA</label><input id="fEmpresa"></div>
+        <div><label>VENCIMENTO</label><input id="fVenc" type="date"></div>
+        <div><label>VALOR</label><input id="fValor" type="text" inputmode="decimal" value="0"></div>
+        <div><label>SITUAÇÃO</label><select id="fSit"><option>Aberto</option><option>Parcial</option><option>Pago</option></select></div>
+        <div><label>PAGO</label><select id="fPago"><option>Não</option><option>Sim</option></select></div>
+        <div><label>REFERÊNCIA</label><input id="fRef" placeholder="Ex.: OUT/2025"></div>
+        <div><label>OBSERVAÇÃO</label><input id="fObs"></div>
+        <div style="display:flex;align-items:flex-end"><button id="btnAdd">Adicionar Linha</button></div>
+      </div>
+      <div class="muted">Ao exportar, o CSV virá com todas as linhas (originais + novas).</div>
+    </section>
+
+    <section class="card">
+      <div class="scroll">
+        <table id="tbl">
+          <thead><tr><th>Vencimento</th><th>Empresa</th><th>Valor</th><th>Situação</th><th>Pago</th><th>Referência</th><th>Obs</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script>
+  let rows=[];
+  function parseDate(d){ return d? new Date(d+'T12:00:00'):null; }
+  function currency(n){ return (n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}); }
+
+  function render(){ 
+    const tb=document.querySelector('#tbl tbody'); tb.innerHTML='';
+    for(const r of rows){ 
+      const tr=document.createElement('tr');
+      tr.innerHTML=`<td>${r.VENCIMENTO? r.VENCIMENTO.toLocaleDateString('pt-BR'):''}</td>
+        <td>${r.EMPRESA}</td><td>${currency(r.VALOR)}</td>
+        <td>${r.SITUACAO}</td><td>${r.PAGO}</td><td>${r.REF}</td><td>${r.OBS}</td>`;
+      tb.appendChild(tr);
+    }
+  }
+
+  document.getElementById('btnAdd').addEventListener('click',()=>{
+    rows.push({
+      VENCIMENTO: parseDate(document.getElementById('fVenc').value),
+      EMPRESA: document.getElementById('fEmpresa').value,
+      VALOR: parseFloat(document.getElementById('fValor').value)||0,
+      SITUACAO: document.getElementById('fSit').value,
+      PAGO: document.getElementById('fPago').value,
+      REF: document.getElementById('fRef').value,
+      OBS: document.getElementById('fObs').value
+    });
+    render();
+  });
+
+  document.getElementById('btnExport').addEventListener('click',()=>{
+    const header=["VENCIMENTO","EMPRESA","VALOR","SITUAÇÃO","PAGO","REFERÊNCIA","OBSERVAÇÃO"];
+    const out=[header.join(',')];
+    for(const r of rows){
+      out.push([r.VENCIMENTO? r.VENCIMENTO.toLocaleDateString('pt-BR'):'',r.EMPRESA,r.VALOR,r.SITUACAO,r.PAGO,r.REF,r.OBS].join(','));
+    }
+    const blob=new Blob([out.join('\n')],{type:'text/csv'});
+    const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='despesas_com_linhas.csv'; a.click();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+  });
+  </script>
+</body>
+</html>
